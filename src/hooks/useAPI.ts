@@ -65,6 +65,7 @@ export const useAPI = () => {
     triage: {
       getAll: (params?: any) => handleRequest(() => triageAPI.getAll(params)),
       getById: (id: string) => handleRequest(() => triageAPI.getById(id)),
+      searchById: (searchTerm: string) => handleRequest(() => triageAPI.searchById(searchTerm)),
       create: (data: any) => handleRequest(() => triageAPI.create(data)),
       update: (id: string, data: any) => handleRequest(() => triageAPI.update(id, data)),
       delete: (id: string) => handleRequest(() => triageAPI.delete(id)),
@@ -117,6 +118,16 @@ export const useAPI = () => {
       create: (data: any) => handleRequest(() => consultoriosAPI.create(data)),
       update: (id: string, data: any) => handleRequest(() => consultoriosAPI.update(id, data)),
       delete: (id: string) => handleRequest(() => consultoriosAPI.delete(id)),
+    },
+
+    financial: {
+      getEarnings: (params?: any) => handleRequest(() => financialAPI.getEarnings(params)),
+      getDailyEarnings: (fecha?: string) => handleRequest(() => financialAPI.getDailyEarnings(fecha)),
+      getPendingPayments: () => handleRequest(() => financialAPI.getPendingPayments()),
+      processPayment: (data: any) => handleRequest(() => financialAPI.processPayment(data)),
+      getMonthlyTrends: (year?: number, month?: number) => handleRequest(() => financialAPI.getMonthlyTrends(year, month)),
+      getTopSpecialties: (params?: any) => handleRequest(() => financialAPI.getTopSpecialties(params)),
+      getRecords: (params?: any) => handleRequest(() => financialAPI.getRecords(params)),
     },
   };
 };

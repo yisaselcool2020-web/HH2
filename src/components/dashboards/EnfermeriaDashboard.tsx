@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Heart, Activity, Shield, Users, Plus, Eye, CreditCard as Edit, AlertTriangle, Clock, Thermometer, Zap, Droplets } from 'lucide-react';
+import { Menu, X, Heart, Activity, Shield, Users, Plus, Eye, CreditCard as Edit, AlertTriangle, Clock, Thermometer, Zap, Droplets, Search } from 'lucide-react';
 import { useAPI } from '../../hooks/useAPI';
 
 const EnfermeriaDashboard: React.FC = () => {
@@ -8,6 +8,8 @@ const EnfermeriaDashboard: React.FC = () => {
   const [triages, setTriages] = useState([]);
   const [patients, setPatients] = useState([]);
   const [showNewTriageModal, setShowNewTriageModal] = useState(false);
+  const [searchId, setSearchId] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
 
   const api = useAPI();
 
@@ -32,6 +34,7 @@ const EnfermeriaDashboard: React.FC = () => {
   const menuItems = [
     { id: 'triajes', label: 'Triajes del Día', icon: Activity },
     { id: 'nuevo-triaje', label: 'Nuevo Triaje', icon: Heart },
+    { id: 'buscar-triaje', label: 'Buscar por ID', icon: Search },
     { id: 'estadisticas', label: 'Estadísticas', icon: Shield },
     { id: 'pacientes', label: 'Pacientes', icon: Users }
   ];
@@ -42,6 +45,8 @@ const EnfermeriaDashboard: React.FC = () => {
         return <TriagesContent triages={triages} onRefresh={loadData} />;
       case 'nuevo-triaje':
         return <NuevoTriageForm patients={patients} onSuccess={loadData} />;
+      case 'buscar-triaje':
+        return <BuscarTriageContent searchId={searchId} setSearchId={setSearchId} searchResults={searchResults} setSearchResults={setSearchResults} />;
       case 'estadisticas':
         return <EstadisticasContent triages={triages} />;
       case 'pacientes':
@@ -128,6 +133,176 @@ const EnfermeriaDashboard: React.FC = () => {
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
+      )}
+    </div>
+  );
+};
+
+// Componente para búsqueda de triajes por ID
+const BuscarTriageContent: React.FC<{
+  searchId: string;
+  setSearchId: (id: string) => void;
+  searchResults: any[];
+  setSearchResults: (results: any[]) => void;
+}> = ({ searchId, setSearchId, searchResults, setSearchResults }) => {
+  const [loading, setLoading] = useState(false);
+  const api = useAPI();
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchId.trim()) return;
+
+    setLoading(true);
+    try {
+      const response = await api.triage.searchById(searchId);
+      setSearchResults(response.triages || []);
+    } catch (error) {
+      console.error('Error searching triages:', error);
+      setSearchResults([]);
+    }
+    setLoading(false);
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'alta': return 'border-red-500 bg-red-50';
+      case 'media': return 'border-yellow-500 bg-yellow-50';
+      case 'baja': return 'border-green-500 bg-green-50';
+      default: return 'border-gray-500 bg-gray-50';
+    }
+  };
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case 'alta': return <AlertTriangle className="w-5 h-5 text-red-500" />;
+      case 'media': return <Clock className="w-5 h-5 text-yellow-500" />;
+      case 'baja': return <Shield className="w-5 h-5 text-green-500" />;
+      default: return <Activity className="w-5 h-5 text-gray-500" />;
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-900">Buscar Triajes por ID de Paciente</h2>
+      
+      {/* Formulario de búsqueda */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <form onSubmit={handleSearch} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Número de Cédula del Paciente
+            </label>
+            <div className="flex space-x-4">
+              <input
+                type="text"
+                value={searchId}
+                onChange={(e) => setSearchId(e.target.value)}
+                placeholder="Ingrese la cédula del paciente..."
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center space-x-2"
+              >
+                {loading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  <Search className="w-4 h-4" />
+                )}
+                <span>Buscar</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      {/* Resultados de búsqueda */}
+      {searchResults.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-900">
+            Resultados encontrados: {searchResults.length} triajes
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {searchResults.map((triage) => (
+              <div key={triage.id} className={`bg-white rounded-lg shadow-md p-4 border-l-4 ${getPriorityColor(triage.prioridad)}`}>
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex items-center space-x-2">
+                    {getPriorityIcon(triage.prioridad)}
+                    <h4 className="font-semibold text-gray-900">
+                      {triage.paciente_nombre} {triage.paciente_apellido}
+                    </h4>
+                  </div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    triage.estado === 'pendiente' ? 'bg-yellow-100 text-yellow-800' :
+                    triage.estado === 'en_proceso' ? 'bg-blue-100 text-blue-800' :
+                    'bg-green-100 text-green-800'
+                  }`}>
+                    {triage.estado.replace('_', ' ')}
+                  </span>
+                </div>
+                
+                <div className="space-y-2 text-sm text-gray-600 mb-4">
+                  <div className="flex items-center">
+                    <Clock className="w-4 h-4 mr-2" />
+                    {new Date(triage.fecha_hora).toLocaleString('es-ES')}
+                  </div>
+                  <div className="text-xs">
+                    <strong>C.I:</strong> {triage.paciente_cedula}
+                  </div>
+                  <div className="text-xs">
+                    <strong>Síntomas:</strong> {triage.sintomas}
+                  </div>
+                </div>
+
+                {/* Signos Vitales */}
+                <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                  <h5 className="text-xs font-medium text-gray-700 mb-2">Signos Vitales</h5>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center">
+                      <Droplets className="w-3 h-3 mr-1 text-red-500" />
+                      PA: {triage.presion_arterial}
+                    </div>
+                    <div className="flex items-center">
+                      <Thermometer className="w-3 h-3 mr-1 text-orange-500" />
+                      T: {triage.temperatura}°C
+                    </div>
+                    <div className="flex items-center">
+                      <Heart className="w-3 h-3 mr-1 text-pink-500" />
+                      FC: {triage.pulso} bpm
+                    </div>
+                    <div className="flex items-center">
+                      <Zap className="w-3 h-3 mr-1 text-blue-500" />
+                      SpO2: {triage.saturacion_oxigeno}%
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex space-x-2">
+                  <button className="flex-1 bg-blue-50 text-blue-600 py-2 px-3 rounded text-sm hover:bg-blue-100">
+                    <Eye className="w-4 h-4 inline mr-1" />
+                    Ver
+                  </button>
+                  <button className="flex-1 bg-green-50 text-green-600 py-2 px-3 rounded text-sm hover:bg-green-100">
+                    <Edit className="w-4 h-4 inline mr-1" />
+                    Editar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {searchId && searchResults.length === 0 && !loading && (
+        <div className="text-center py-12">
+          <Search className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron triajes</h3>
+          <p className="text-gray-600">
+            No hay triajes registrados para la cédula: <strong>{searchId}</strong>
+          </p>
+        </div>
       )}
     </div>
   );

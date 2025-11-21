@@ -78,6 +78,7 @@ export const appointmentsAPI = {
 export const triageAPI = {
   getAll: (params?: any) => api.get('/triage', { params }),
   getById: (id: string) => api.get(`/triage/${id}`),
+  searchById: (searchTerm: string) => api.get(`/triage/search/${searchTerm}`),
   create: (data: any) => api.post('/triage', data),
   update: (id: string, data: any) => api.put(`/triage/${id}`, data),
   delete: (id: string) => api.delete(`/triage/${id}`),
@@ -132,4 +133,13 @@ export const consultoriosAPI = {
   delete: (id: string) => api.delete(`/consultorios/${id}`),
 };
 
+export const financialAPI = {
+  getEarnings: (params?: any) => api.get('/financial/earnings', { params }),
+  getDailyEarnings: (fecha?: string) => api.get('/financial/daily-earnings', { params: { fecha } }),
+  getPendingPayments: () => api.get('/financial/pending-payments'),
+  processPayment: (data: any) => api.post('/financial/process-payment', data),
+  getMonthlyTrends: (year?: number, month?: number) => api.get('/financial/monthly-trends', { params: { year, month } }),
+  getTopSpecialties: (params?: any) => api.get('/financial/top-specialties', { params }),
+  getRecords: (params?: any) => api.get('/financial/records', { params }),
+};
 export default api;
