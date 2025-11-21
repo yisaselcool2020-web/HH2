@@ -11,6 +11,7 @@ const EmpresaDashboard: React.FC = () => {
   const [showNewDoctorModal, setShowNewDoctorModal] = useState(false);
   const [especialidades, setEspecialidades] = useState([]);
   const [consultorios, setConsultorios] = useState([]);
+  const [financialData, setFinancialData] = useState({});
 
   const api = useAPI();
 
@@ -20,17 +21,19 @@ const EmpresaDashboard: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [doctorsData, statsData, especialidadesData, consultoriosData] = await Promise.all([
+      const [doctorsData, statsData, especialidadesData, consultoriosData, financialData] = await Promise.all([
         api.doctors.getAll(),
         api.dashboard.getStats(),
         api.especialidades.getAll(),
-        api.consultorios.getAll()
+        api.consultorios.getAll(),
+        api.financial.getEarnings()
       ]);
       
       setDoctors(doctorsData || []);
       setStats(statsData || {});
       setEspecialidades(especialidadesData || []);
       setConsultorios(consultoriosData || []);
+      setFinancialData(financialData || {});
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -40,6 +43,7 @@ const EmpresaDashboard: React.FC = () => {
     { id: 'overview', label: 'Resumen General', icon: BarChart3 },
     { id: 'doctores', label: 'Gestión de Doctores', icon: Stethoscope },
     { id: 'nuevo-doctor', label: 'Nuevo Doctor', icon: UserPlus },
+    { id: 'ingresos', label: 'Ingresos y Ganancias', icon: TrendingUp },
     { id: 'reportes', label: 'Reportes', icon: FileText },
     { id: 'configuracion', label: 'Configuración', icon: Settings }
   ];
@@ -52,6 +56,8 @@ const EmpresaDashboard: React.FC = () => {
         return <DoctoresContent doctors={doctors} onRefresh={loadData} />;
       case 'nuevo-doctor':
         return <NuevoDoctorForm especialidades={especialidades} consultorios={consultorios} onSuccess={loadData} />;
+      case 'ingresos':
+        return <IngresosContent financialData={financialData} onRefresh={loadData} />;
       case 'reportes':
         return <ReportesContent stats={stats} doctors={doctors} />;
       case 'configuracion':
@@ -138,6 +144,210 @@ const EmpresaDashboard: React.FC = () => {
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
+      )}
+    </div>
+  );
+};
+
+// Componente para ingresos y ganancias
+const IngresosContent: React.FC<{ financialData: any, onRefresh: () => void }> = ({ 
+  financialData, onRefresh 
+}) => {
+  const [selectedPeriod, setSelectedPeriod] = useState('month');
+  const [pendingPayments, setPendingPayments] = useState([]);
+  const api = useAPI();
+
+  useEffect(() => {
+    loadPendingPayments();
+  }, []);
+
+  const loadPendingPayments = async () => {
+    try {
+      const data = await api.financial.getPendingPayments();
+      setPendingPayments(data.pending_payments || []);
+    } catch (error) {
+      console.error('Error loading pending payments:', error);
+    }
+  };
+
+  const totales = financialData.totales || {};
+  const porRegimen = financialData.por_regimen || [];
+  const porEspecialidad = financialData.por_especialidad || [];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">Ingresos y Ganancias</h2>
+        <div className="flex space-x-2">
+          <select
+            value={selectedPeriod}
+            onChange={(e) => setSelectedPeriod(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+          >
+            <option value="day">Hoy</option>
+            <option value="week">Esta Semana</option>
+            <option value="month">Este Mes</option>
+            <option value="year">Este Año</option>
+          </select>
+          <button
+            onClick={onRefresh}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          >
+            Actualizar
+          </button>
+        </div>
+      </div>
+
+      {/* Resumen de ingresos */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center">
+            <TrendingUp className="w-8 h-8 text-green-500" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Ingresos Totales</p>
+              <p className="text-2xl font-bold text-gray-900">
+                ${totales.total?.toLocaleString() || '0'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center">
+            <Users className="w-8 h-8 text-blue-500" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Contributivos</p>
+              <p className="text-2xl font-bold text-blue-600">
+                ${totales.contributivo?.toLocaleString() || '0'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center">
+            <Heart className="w-8 h-8 text-orange-500" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Subsidiados</p>
+              <p className="text-2xl font-bold text-orange-600">
+                ${totales.subsidiado?.toLocaleString() || '0'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center">
+            <Activity className="w-8 h-8 text-purple-500" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Transacciones</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {totales.transacciones || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Ingresos por especialidad */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Ingresos por Especialidad</h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Especialidad
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Consultas
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Contributivos
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Subsidiados
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Total
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {porEspecialidad.map((especialidad, index) => (
+                <tr key={index} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {especialidad.especialidad}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {especialidad.total_consultas}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
+                    ${parseFloat(especialidad.ingresos_contributivos || 0).toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-orange-600">
+                    ${parseFloat(especialidad.ingresos_subsidiados || 0).toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    ${parseFloat(especialidad.ingresos_totales || 0).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Pagos pendientes */}
+      {pendingPayments.length > 0 && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">
+            Pagos Pendientes ({pendingPayments.length})
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Paciente
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Especialidad
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Monto
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Fecha
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {pendingPayments.slice(0, 10).map((payment, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {payment.paciente_nombre} {payment.paciente_apellido}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {payment.paciente_cedula}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {payment.especialidad_nombre}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-600">
+                      ${parseFloat(payment.monto).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(payment.created_at).toLocaleDateString('es-ES')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   );
